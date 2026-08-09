@@ -1,38 +1,14 @@
-<!doctype html>
-<html lang="lv">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dzimtas koks</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <header class="topbar">
-    <div>
-      <h1 id="siteTitle">Mūsu dzimtas koks</h1>
-      <p id="siteSubtitle">Interaktīvs dzimtas koks</p>
-    </div>
-    <div class="controls">
-      <input id="search" type="search" placeholder="Meklēt personu..." aria-label="Meklēt personu">
-      <button id="zoomOut" type="button">−</button>
-      <button id="zoomReset" type="button">100%</button>
-      <button id="zoomIn" type="button">+</button>
-    </div>
-  </header>
-
-  <main>
-    <section class="tree-wrap" aria-label="Interaktīvs dzimtas koks">
-      <div id="tree" class="tree"></div>
-    </section>
-    <p class="hint">Velciet koku ar peli vai pirkstu. Izmantojiet + / −, lai mainītu mērogu. Noklikšķiniet uz personas, lai skatītu informāciju.</p>
-  </main>
-
-  <dialog id="personDialog">
-    <button class="close" id="closeDialog" aria-label="Aizvērt">×</button>
-    <div id="personDetails"></div>
-  </dialog>
-
-  <script src="data.js"></script>
-  <script src="app.js"></script>
-</body>
-</html>
+<!doctype html><html lang="lv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mūsu dzimtas koks</title><link rel="stylesheet" href="style.css"></head><body>
+<header><div class="brand">🌳 <b>Mūsu dzimtas koks</b><small>Ģimenes vēsture un dzimtas saites</small></div><div><button id="export">⇩ Eksportēt</button><button id="edit" class="primary">✎ Rediģēt koku</button></div></header>
+<main><aside id="editor" class="hidden"><h2 id="ft">Pievienot personu <button id="close">×</button></h2><form id="form"><input type="hidden" id="id">
+<label>Foto<div id="drop" class="drop">📷<br><small>Klikšķini vai izvēlies failu</small><input id="photo" type="file" accept="image/*"></div></label>
+<label>Vārds *<input id="first" required></label><label>Uzvārds *<input id="last" required></label>
+<div class="two"><label>Dzimšanas datums<input id="birth"></label><label>Miršanas datums<input id="death"></label></div>
+<label>Dzimums<select id="gender"><option value="">Izvēlies</option><option value="M">Vīrietis</option><option value="F">Sieviete</option></select></label>
+<label>Vecāki<select id="parents" multiple size="4"></select></label><label>Partneris<select id="partner"><option value="">— nav norādīts —</option></select></label>
+<label>Vieta<input id="place"></label><label>Apraksts / piezīmes<textarea id="bio"></textarea></label>
+<button type="button" id="cancel">Atcelt</button><button class="primary">Saglabāt</button></form>
+<p class="tip">Foto un izmaiņas vispirms tiek saglabātas šajā pārlūkā. Lai tās publicētu visiem, spied <b>Eksportēt</b> un aizvieto GitHub failu <code>data.js</code>.</p></aside>
+<section class="canvas"><div class="toolbar"><button id="add">＋ Pievienot personu</button><input id="search" placeholder="🔍 Meklēt..."><button id="minus">−</button><button id="reset">100%</button><button id="plus">＋</button></div><div id="vp"><div id="tree"></div></div><div class="legend"><b>Apzīmējumi</b><br><i class="m"></i> Vīrietis<br><i class="f"></i> Sieviete<br>♡ Pāris</div></section></main>
+<dialog id="dlg"><button id="xd">×</button><div id="details"></div></dialog><div id="toast"></div>
+<script src="data.js"></script><script src="app.js"></script></body></html>

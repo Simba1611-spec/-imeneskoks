@@ -1,148 +1,23 @@
-const titleEl = document.getElementById("siteTitle");
-const subtitleEl = document.getElementById("siteSubtitle");
-titleEl.textContent = SITE.title;
-subtitleEl.textContent = SITE.subtitle;
-
-const wrap = document.querySelector(".tree-wrap");
-const tree = document.getElementById("tree");
-const search = document.getElementById("search");
-const dialog = document.getElementById("personDialog");
-const details = document.getElementById("personDetails");
-
-let scale = 1, offsetX = -350, offsetY = 0;
-let dragging = false, startX = 0, startY = 0, startOX = 0, startOY = 0;
-
-function childrenOf(id) {
-  return PEOPLE.filter(p => (p.parents || []).includes(id));
-}
-
-function generations() {
-  const memo = new Map();
-  function gen(p) {
-    if (memo.has(p.id)) return memo.get(p.id);
-    if (!p.parents || p.parents.length === 0) return memo.set(p.id, 0).get(p.id);
-    const parentPeople = p.parents.map(id => PEOPLE.find(x => x.id === id)).filter(Boolean);
-    const g = parentPeople.length ? Math.max(...parentPeople.map(gen)) + 1 : 0;
-    memo.set(p.id, g);
-    return g;
-  }
-  PEOPLE.forEach(gen);
-  return memo;
-}
-
-function layout() {
-  tree.innerHTML = "";
-  const gen = generations();
-  const groups = new Map();
-  PEOPLE.forEach(p => {
-    const g = gen.get(p.id) || 0;
-    if (!groups.has(g)) groups.set(g, []);
-    groups.get(g).push(p);
-  });
-
-  const xGap = 225, yGap = 155, maxW = Math.max(...[...groups.values()].map(a => a.length), 1) * xGap;
-  const positions = new Map();
-
-  [...groups.entries()].sort((a,b) => a[0]-b[0]).forEach(([g, arr]) => {
-    const start = -((arr.length - 1) * xGap) / 2;
-    arr.forEach((p, i) => positions.set(p.id, {x: start + i*xGap, y: g*yGap}));
-  });
-
-  // Canvas-like SVG for connectors.
-  const maxDepth = Math.max(...gen.values(), 0);
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.classList.add("lines");
-  svg.style.left = "0"; svg.style.top = "0";
-  svg.setAttribute("width", Math.max(maxW + 500, 1400));
-  svg.setAttribute("height", (maxDepth + 1) * yGap + 180);
-
-  for (const p of PEOPLE) {
-    const child = positions.get(p.id);
-    if (!child) continue;
-    for (const pid of (p.parents || [])) {
-      const parent = positions.get(pid);
-      if (!parent) continue;
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      const x1 = parent.x, y1 = parent.y + 85;
-      const x2 = child.x, y2 = child.y;
-      const mid = (y1 + y2) / 2;
-      path.setAttribute("d", `M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`);
-      path.classList.add("line");
-      svg.appendChild(path);
-    }
-  }
-  tree.appendChild(svg);
-
-  PEOPLE.forEach(p => {
-    const pos = positions.get(p.id);
-    const el = document.createElement("button");
-    el.type = "button";
-    el.className = "node";
-    el.dataset.id = p.id;
-    el.style.left = `${pos.x}px`;
-    el.style.top = `${pos.y}px`;
-    el.innerHTML = `
-      ${p.photo ? `<img src="${escapeAttr(p.photo)}" alt="">` : ""}
-      <div class="name">${escapeHtml(p.name)}</div>
-      <div class="dates">${escapeHtml(p.birth || "")}${p.birth && p.death ? "–" : ""}${escapeHtml(p.death || "")}</div>
-    `;
-    el.addEventListener("click", () => showPerson(p));
-    tree.appendChild(el);
-  });
-  applyTransform();
-}
-
-function showPerson(p) {
-  details.innerHTML = `
-    ${p.photo ? `<img src="${escapeAttr(p.photo)}" alt="">` : ""}
-    <h2>${escapeHtml(p.name)}</h2>
-    <div class="detail"><strong>Dzimšana:</strong> ${escapeHtml(p.birth || "—")}</div>
-    <div class="detail"><strong>Miršana:</strong> ${escapeHtml(p.death || "—")}</div>
-    <div class="detail"><strong>Vieta:</strong> ${escapeHtml(p.place || "—")}</div>
-    <p>${escapeHtml(p.bio || "")}</p>
-  `;
-  dialog.showModal();
-}
-
-function applyTransform() {
-  tree.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-}
-
-function setScale(v) {
-  scale = Math.max(0.45, Math.min(1.8, v));
-  document.getElementById("zoomReset").textContent = `${Math.round(scale*100)}%`;
-  applyTransform();
-}
-document.getElementById("zoomIn").onclick = () => setScale(scale + .1);
-document.getElementById("zoomOut").onclick = () => setScale(scale - .1);
-document.getElementById("zoomReset").onclick = () => { scale = 1; offsetX = -350; offsetY = 0; applyTransform(); document.getElementById("zoomReset").textContent="100%"; };
-document.getElementById("closeDialog").onclick = () => dialog.close();
-
-wrap.addEventListener("pointerdown", e => {
-  if (e.target.closest(".node")) return;
-  dragging = true; wrap.classList.add("dragging");
-  startX = e.clientX; startY = e.clientY; startOX = offsetX; startOY = offsetY;
-  wrap.setPointerCapture(e.pointerId);
-});
-wrap.addEventListener("pointermove", e => {
-  if (!dragging) return;
-  offsetX = startOX + (e.clientX - startX);
-  offsetY = startOY + (e.clientY - startY);
-  applyTransform();
-});
-wrap.addEventListener("pointerup", () => { dragging = false; wrap.classList.remove("dragging"); });
-
-search.addEventListener("input", () => {
-  const q = search.value.trim().toLowerCase();
-  document.querySelectorAll(".node").forEach(n => {
-    const p = PEOPLE.find(x => x.id === n.dataset.id);
-    n.classList.toggle("highlight", !!q && p.name.toLowerCase().includes(q));
-  });
-});
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
-}
-function escapeAttr(s) { return escapeHtml(s); }
-
-layout();
+let people=PEOPLE.map(p=>({...p,parents:[...(p.parents||[])]})),zoom=1,ox=-260,oy=0,editMode=false,photoData="",selected=null;
+const $=x=>document.getElementById(x), name=p=>(p.firstName+" "+p.lastName).trim(), esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+if(localStorage.familyTreeDataV2)try{people=JSON.parse(localStorage.familyTreeDataV2)}catch{}
+function save(){localStorage.familyTreeDataV2=JSON.stringify(people)}
+function msg(t){$("toast").textContent=t;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),2200)}
+function generations(){let m=new Map();function g(p,s=new Set()){if(m.has(p.id))return m.get(p.id);if(!p.parents?.length||s.has(p.id)){m.set(p.id,0);return 0}let ps=p.parents.map(id=>people.find(x=>x.id==id)).filter(Boolean),v=ps.length?Math.max(...ps.map(x=>g(x,new Set([...s,p.id]))))+1:0;m.set(p.id,v);return v}people.forEach(p=>g(p));return m}
+function render(){let tree=$("tree");tree.innerHTML="";let gm=generations(),groups=new Map();people.forEach(p=>{let g=gm.get(p.id)||0;if(!groups.has(g))groups.set(g,[]);groups.get(g).push(p)});let pos=new Map(),xgap=285,ygap=175;[...groups].sort((a,b)=>a[0]-b[0]).forEach(([g,a])=>{let st=-(a.length-1)*xgap/2;a.forEach((p,i)=>pos.set(p.id,{x:st+i*xgap,y:g*ygap}))});
+let svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("width","2200");svg.setAttribute("height",(Math.max(...gm.values(),0)+1)*ygap+180);
+people.forEach(p=>{let c=pos.get(p.id);(p.parents||[]).forEach(id=>{let q=pos.get(id);if(!q)return;let z=document.createElementNS("http://www.w3.org/2000/svg","path"),y1=q.y+110,y2=c.y,mid=(y1+y2)/2;z.setAttribute("d",`M${q.x} ${y1} C${q.x} ${mid},${c.x} ${mid},${c.x} ${y2}`);z.classList.add("line");svg.appendChild(z)});if(p.partnerId&&p.id<p.partnerId){let q=pos.get(p.partnerId);if(q){let l=document.createElementNS("http://www.w3.org/2000/svg","line");l.setAttribute("x1",c.x+120);l.setAttribute("y1",c.y+52);l.setAttribute("x2",q.x-120);l.setAttribute("y2",q.y+52);l.classList.add("partner");svg.appendChild(l)}}});tree.appendChild(svg);
+people.forEach(p=>{let b=document.createElement("button"),c=pos.get(p.id);b.className="node "+(p.gender=="F"?"female":"");b.dataset.id=p.id;b.style.left=c.x+"px";b.style.top=c.y+"px";b.innerHTML=(p.photo?`<img src="${esc(p.photo)}">`:`<div class="avatar">${p.gender=="F"?"👩":"👨"}</div>`)+`<div><div class="name">${esc(name(p))}</div><div class="dates">${esc(p.birth||"")}${p.birth&&p.death?" – ":""}${esc(p.death||"")}</div><div class="place">${esc(p.place||"")}</div></div>`;b.onclick=()=>editMode?open(p.id):details(p);tree.appendChild(b)});transform()}
+function transform(){$("tree").style.transform=`translate(${ox}px,${oy}px) scale(${zoom})`;$("reset").textContent=Math.round(zoom*100)+"%"}
+function fill(p){$("parents").innerHTML="";$("partner").innerHTML='<option value="">— nav norādīts —</option>';people.filter(x=>x.id!=p?.id).forEach(x=>{$("parents").insertAdjacentHTML("beforeend",`<option value="${x.id}" ${(p?.parents||[]).includes(x.id)?"selected":""}>${esc(name(x))}</option>`);$("partner").insertAdjacentHTML("beforeend",`<option value="${x.id}" ${p?.partnerId==x.id?"selected":""}>${esc(name(x))}</option>`)})}
+function open(id=""){let p=id?people.find(x=>x.id==id):null;selected=id;$("id").value=id;$("first").value=p?.firstName||"";$("last").value=p?.lastName||"";$("birth").value=p?.birth||"";$("death").value=p?.death||"";$("gender").value=p?.gender||"";$("place").value=p?.place||"";$("bio").value=p?.bio||"";photoData=p?.photo||"";$("drop").innerHTML=photoData?`<img src="${esc(photoData)}">`:`📷<br><small>Klikšķini vai izvēlies failu</small><input id="photo" type="file" accept="image/*">`;if(!photoData) $("photo").onchange=e=>read(e.target.files[0]);fill(p);$("editor").classList.remove("hidden")}
+function read(f){if(!f)return;if(f.size>2000000){msg("Foto ir par lielu (maks. 2 MB).");return}let r=new FileReader();r.onload=()=>{photoData=r.result;$("drop").innerHTML=`<img src="${esc(photoData)}">`};r.readAsDataURL(f)}
+$("edit").onclick=()=>{editMode=!editMode;$("edit").textContent=editMode?"✓ Rediģēšanas režīms":"✎ Rediģēt koku";if(editMode)$("editor").classList.remove("hidden");else $("editor").classList.add("hidden");render()};
+$("add").onclick=()=>open();$("close").onclick=$("cancel").onclick=()=>$("editor").classList.add("hidden");
+$("form").onsubmit=e=>{e.preventDefault();let id=$("id").value,p=id?people.find(x=>x.id==id):null;if(!p){id="p"+Date.now();p={id,parents:[]};people.push(p)}Object.assign(p,{firstName:$("first").value,lastName:$("last").value,birth:$("birth").value,death:$("death").value,gender:$("gender").value,place:$("place").value,bio:$("bio").value,photo:photoData,parents:[...$("parents").selectedOptions].map(o=>o.value),partnerId:$("partner").value});save();$("editor").classList.add("hidden");render();msg("Persona saglabāta.")};
+$("export").onclick=()=>{let txt=`const SITE = ${JSON.stringify(SITE,null,2)};\nconst PEOPLE = ${JSON.stringify(people,null,2)};\n`;let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"text/javascript"}));a.download="data.js";a.click();msg("data.js lejupielādēts.")};
+$("photo").onchange=e=>read(e.target.files[0]);
+$("search").oninput=()=>{let q=$("search").value.toLowerCase();document.querySelectorAll(".node").forEach(n=>{let p=people.find(x=>x.id==n.dataset.id);n.classList.toggle("hit",q&&name(p).toLowerCase().includes(q))})};
+$("plus").onclick=()=>{zoom=Math.min(1.8,zoom+.1);transform()};$("minus").onclick=()=>{zoom=Math.max(.45,zoom-.1);transform()};$("reset").onclick=()=>{zoom=1;ox=-260;oy=0;transform()};
+let drag=false,sx,sy,a,b,v=$("vp");v.onpointerdown=e=>{if(e.target.closest(".node"))return;drag=true;sx=e.clientX;sy=e.clientY;a=ox;b=oy;v.setPointerCapture(e.pointerId)};v.onpointermove=e=>{if(drag){ox=a+e.clientX-sx;oy=b+e.clientY-sy;transform()}};v.onpointerup=()=>drag=false;
+function details(p){$("details").innerHTML=`<div class="details">${p.photo?`<img src="${esc(p.photo)}">`:""}<h2>${esc(name(p))}</h2><p><b>Dzimšana:</b> ${esc(p.birth||"—")}<br><b>Miršana:</b> ${esc(p.death||"—")}<br><b>Vieta:</b> ${esc(p.place||"—")}</p><p>${esc(p.bio||"")}</p></div>`;$("dlg").showModal()}$("xd").onclick=()=>$("dlg").close();render();
