@@ -1,5 +1,7 @@
 
 
+
+ 
 let people=PEOPLE.map(p=>({...p,parents:[...(p.parents||[])]})),zoom=.72,ox=0,oy=10,editMode=false,photoData="";
 const $=id=>document.getElementById(id),full=p=>(p.firstName+" "+p.lastName).trim(),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 if(localStorage.familyTreeDataV3)try{people=JSON.parse(localStorage.familyTreeDataV3)}catch{}
@@ -12,9 +14,9 @@ function render(){
   const level=gen();
 
   // Build family units: a couple is one unit, a single person is one unit.
-  const units=units();
+  const familyUnits=units();
   const unitOf=new Map();
-  units.forEach(u=>u.forEach(p=>unitOf.set(p.id,u)));
+  familyUnits.forEach(u=>u.forEach(p=>unitOf.set(p.id,u)));
 
   // A person's children belong to the family unit formed by their parents.
   const childrenOf=new Map();
@@ -30,14 +32,14 @@ function render(){
 
   // Give every family unit a generation based on its child/person level.
   const unitLevel=new Map();
-  units.forEach(u=>{
+  familyUnits.forEach(u=>{
     const lv=Math.max(...u.map(p=>level.get(p.id)||0));
     unitLevel.set(u[0].id,lv);
   });
 
   // Keep the main ancestral line centered and place sibling families as a row.
   const levels=new Map();
-  units.forEach(u=>{
+  familyUnits.forEach(u=>{
     const lv=unitLevel.get(u[0].id)||0;
     if(!levels.has(lv))levels.set(lv,[]);
     levels.get(lv).push(u);
@@ -87,7 +89,7 @@ function render(){
 
   // Connector from a parent family unit to its children.
   const parentCenters=new Map();
-  units.forEach(u=>parentCenters.set(u[0].id,pos.get(u[0].id)));
+  familyUnits.forEach(u=>parentCenters.set(u[0].id,pos.get(u[0].id)));
 
   const line=(x1,y1,x2,y2,cls="family-line")=>{
     const el=document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -98,7 +100,7 @@ function render(){
   };
 
   // For every family unit, connect its parents' family unit to the child unit.
-  units.forEach(u=>{
+  familyUnits.forEach(u=>{
     const child=u[0];
     if(!child.parents?.length)return;
     const parentUnits=[...new Set(child.parents.map(id=>unitOf.get(id)).filter(Boolean))];
@@ -140,7 +142,7 @@ function render(){
   }
 
   // Cards.
-  units.forEach(u=>{
+  familyUnits.forEach(u=>{
     const p=pos.get(u[0].id);
     const f=document.createElement("div");
     f.className="family";
