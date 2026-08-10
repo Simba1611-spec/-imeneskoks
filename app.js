@@ -1,7 +1,8 @@
+
 let people=PEOPLE.map(p=>({...p,parents:[...(p.parents||[])]})),zoom=.82,ox=-120,oy=0,editMode=false,photoData="";
 const $=id=>document.getElementById(id),full=p=>(p.firstName+" "+p.lastName).trim(),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
-if(localStorage.familyTreeDataV2)try{people=JSON.parse(localStorage.familyTreeDataV2)}catch{}
-function save(){localStorage.familyTreeDataV2=JSON.stringify(people)}function toast(t){let x=$("toast");x.textContent=t;x.classList.add("show");setTimeout(()=>x.classList.remove("show"),2200)}
+if(localStorage.familyTreeDataV3)try{people=JSON.parse(localStorage.familyTreeDataV3)}catch{}
+function save(){localStorage.familyTreeDataV3=JSON.stringify(people)}function toast(t){let x=$("toast");x.textContent=t;x.classList.add("show");setTimeout(()=>x.classList.remove("show"),2200)}
 function gen(){let m=new Map();function g(p,s=new Set()){if(m.has(p.id))return m.get(p.id);if(!p.parents.length||s.has(p.id)){m.set(p.id,0);return 0}let a=p.parents.map(id=>people.find(x=>x.id===id)).filter(Boolean),v=a.length?Math.max(...a.map(x=>g(x,new Set([...s,p.id]))))+1:0;m.set(p.id,v);return v}people.forEach(p=>g(p));return m}
 function units(){let used=new Set(),u=[];people.forEach(p=>{if(used.has(p.id))return;let q=p.partnerId&&people.find(x=>x.id===p.partnerId&&x.partnerId===p.id);if(q){u.push([p,q]);used.add(p.id);used.add(q.id)}else{u.push([p]);used.add(p.id)}});return u}
 function render(){
