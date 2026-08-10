@@ -4,13 +4,49 @@ if(localStorage.familyTreeDataV2)try{people=JSON.parse(localStorage.familyTreeDa
 function save(){localStorage.familyTreeDataV2=JSON.stringify(people)}
 function msg(t){$("toast").textContent=t;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),2200)}
 function generations(){let m=new Map();function g(p,s=new Set()){if(m.has(p.id))return m.get(p.id);if(!p.parents?.length||s.has(p.id)){m.set(p.id,0);return 0}let ps=p.parents.map(id=>people.find(x=>x.id==id)).filter(Boolean),v=ps.length?Math.max(...ps.map(x=>g(x,new Set([...s,p.id]))))+1:0;m.set(p.id,v);return v}people.forEach(p=>g(p));return m}
-function render(){let tree=$("tree");tree.innerHTML="";let gm=generations(),groups=new Map();people.forEach(p=>{let g=gm.get(p.id)||0;if(!groups.has(g))groups.set(g,[]);groups.get(g).push(p)});let pos=new Map(),xgap=285,ygap=175;[...groups].sort((a,b)=>a[0]-b[0]).forEach(([g,a])=>{let st=-(a.length-1)*xgap/2;a.forEach((p,i)=>pos.set(p.id,{x:st+i*xgap,y:g*ygap}))});
-let svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("width","2200");svg.setAttribute("height",(Math.max(...gm.values(),0)+1)*ygap+180);
-people.forEach(p=>{let c=pos.get(p.id);(p.parents||[]).forEach(id=>{let q=pos.get(id);if(!q)return;let z=document.createElementNS("http://www.w3.org/2000/svg","path"),y1=q.y+110,y2=c.y,mid=(y1+y2)/2;z.setAttribute("d",`M${q.x} ${y1} C${q.x} ${mid},${c.x} ${mid},${c.x} ${y2}`);z.classList.add("line");svg.appendChild(z)});if(p.partnerId&&p.id<p.partnerId){let q=pos.get(p.partnerId);if(q){let l=document.createElementNS("http://www.w3.org/2000/svg","line");l.setAttribute("x1",c.x+120);l.setAttribute("y1",c.y+52);l.setAttribute("x2",q.x-120);l.setAttribute("y2",q.y+52);l.classList.add("partner");svg.appendChild(l)}}});tree.appendChild(svg);
-people.forEach(p=>{let b=document.createElement("button"),c=pos.get(p.id);b.className="node "+(p.gender=="F"?"female":"");b.dataset.id=p.id;b.style.left=c.x+"px";b.style.top=c.y+"px";b.innerHTML=(p.photo?`<img src="${esc(p.photo)}">`:`<div class="avatar">${p.gender=="F"?"👩":"👨"}</div>`)+`<div><div class="name">${esc(name(p))}</div><div class="dates">${esc(p.birth||"")}${p.birth&&p.death?" – ":""}${esc(p.death||"")}</div><div class="place">${esc(p.place||"")}</div></div>`;b.onclick=()=>editMode?open(p.id):details(p);tree.appendChild(b)});transform()}
+function relation(p){
+ if(p.partnerId&&p.parents?.length)return p.gender==="F"?"MEITA • SIEVA":"DĒLS • VĪRS";
+ if(p.parents?.length)return p.gender==="F"?"MEITA":"DĒLS";
+ return "";
+}
+function render(){
+ let tree=$("tree");tree.innerHTML="";let gm=generations(),groups=new Map();
+ people.forEach(p=>{let g=gm.get(p.id)||0;if(!groups.has(g))groups.set(g,[]);groups.get(g).push(p)});
+ let pos=new Map(),xgap=285,ygap=175;
+ [...groups].sort((a,b)=>a[0]-b[0]).forEach(([g,a])=>{let st=-(a.length-1)*xgap/2;a.forEach((p,i)=>pos.set(p.id,{x:st+i*xgap,y:g*ygap}))});
+ let svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+ svg.setAttribute("width","2200");svg.setAttribute("height",(Math.max(...gm.values(),0)+1)*ygap+180);
+ people.forEach(p=>{
+   let c=pos.get(p.id);
+   (p.parents||[]).forEach(id=>{
+     let q=pos.get(id);if(!q)return;
+     let z=document.createElementNS("http://www.w3.org/2000/svg","path"),y1=q.y+110,y2=c.y,mid=(y1+y2)/2;
+     z.setAttribute("d",`M${q.x} ${y1} C${q.x} ${mid},${c.x} ${mid},${c.x} ${y2}`);z.classList.add("line");svg.appendChild(z);
+     let t=document.createElementNS("http://www.w3.org/2000/svg","text");
+     t.setAttribute("x",(q.x+c.x)/2);t.setAttribute("y",mid-6);t.setAttribute("class","child-label");
+     t.textContent=p.gender==="F"?"MEITA":"DĒLS";svg.appendChild(t);
+   });
+   if(p.partnerId&&p.id<p.partnerId){
+     let q=pos.get(p.partnerId);if(q){
+       let l=document.createElementNS("http://www.w3.org/2000/svg","line");
+       l.setAttribute("x1",c.x+120);l.setAttribute("y1",c.y+52);l.setAttribute("x2",q.x-120);l.setAttribute("y2",q.y+52);l.classList.add("partner");svg.appendChild(l);
+       let h=document.createElementNS("http://www.w3.org/2000/svg","text");
+       h.setAttribute("x",(c.x+q.x)/2);h.setAttribute("y",Math.min(c.y,q.y)+45);h.setAttribute("class","heart-label");h.textContent="♥";svg.appendChild(h);
+     }
+   }
+ });
+ tree.appendChild(svg);
+ people.forEach(p=>{
+   let b=document.createElement("button"),c=pos.get(p.id);b.className="node "+(p.gender=="F"?"female":"");b.dataset.id=p.id;b.style.left=c.x+"px";b.style.top=c.y+"px";
+   let rel=relation(p);
+   b.innerHTML=(p.photo?`<img src="${esc(p.photo)}">`:`<div class="avatar">${p.gender=="F"?"👩":"👨"}</div>`)+`<div><div class="name">${esc(name(p))}</div><div class="dates">${esc(p.birth||"")}${p.birth&&p.death?" – ":""}${esc(p.death||"")}</div><div class="place">${esc(p.place||"")}</div>${rel?`<span class="rel-tag">${esc(rel)}</span>`:""}</div>`;
+   b.onclick=()=>editMode?open(p.id):details(p);tree.appendChild(b)
+ });
+ transform()
+}
 function transform(){$("tree").style.transform=`translate(${ox}px,${oy}px) scale(${zoom})`;$("reset").textContent=Math.round(zoom*100)+"%"}
 function fill(p){$("parents").innerHTML="";$("partner").innerHTML='<option value="">— nav norādīts —</option>';people.filter(x=>x.id!=p?.id).forEach(x=>{$("parents").insertAdjacentHTML("beforeend",`<option value="${x.id}" ${(p?.parents||[]).includes(x.id)?"selected":""}>${esc(name(x))}</option>`);$("partner").insertAdjacentHTML("beforeend",`<option value="${x.id}" ${p?.partnerId==x.id?"selected":""}>${esc(name(x))}</option>`)})}
-function open(id=""){let p=id?people.find(x=>x.id==id):null;selected=id;$("id").value=id;$("first").value=p?.firstName||"";$("last").value=p?.lastName||"";$("birth").value=p?.birth||"";$("death").value=p?.death||"";$("gender").value=p?.gender||"";$("place").value=p?.place||"";$("bio").value=p?.bio||"";photoData=p?.photo||"";$("drop").innerHTML=photoData?`<img src="${esc(photoData)}">`:`📷<br><small>Klikšķini vai izvēlies failu</small><input id="photo" type="file" accept="image/*">`;if(!photoData) $("photo").onchange=e=>read(e.target.files[0]);fill(p);$("editor").classList.remove("hidden")}
+function open(id=""){let p=id?people.find(x=>x.id==id):null;selected=id;$("id").value=id;$("first").value=p?.firstName||"";$("last").value=p?.lastName||"";$("birth").value=p?.birth||"";$("death").value=p?.death||"";$("gender").value=p?.gender||"";$("place").value=p?.place||"";$("bio").value=p?.bio||"";photoData=p?.photo||"";$("drop").innerHTML=photoData?`<img src="${esc(photoData)}">`:`📷<br><small>Klikšķini vai izvēlies failu</small><input id="photo" type="file" accept="image/*">`;if(!photoData)$("photo").onchange=e=>read(e.target.files[0]);fill(p);$("editor").classList.remove("hidden")}
 function read(f){if(!f)return;if(f.size>2000000){msg("Foto ir par lielu (maks. 2 MB).");return}let r=new FileReader();r.onload=()=>{photoData=r.result;$("drop").innerHTML=`<img src="${esc(photoData)}">`};r.readAsDataURL(f)}
 $("edit").onclick=()=>{editMode=!editMode;$("edit").textContent=editMode?"✓ Rediģēšanas režīms":"✎ Rediģēt koku";if(editMode)$("editor").classList.remove("hidden");else $("editor").classList.add("hidden");render()};
 $("add").onclick=()=>open();$("close").onclick=$("cancel").onclick=()=>$("editor").classList.add("hidden");
@@ -20,4 +56,5 @@ $("photo").onchange=e=>read(e.target.files[0]);
 $("search").oninput=()=>{let q=$("search").value.toLowerCase();document.querySelectorAll(".node").forEach(n=>{let p=people.find(x=>x.id==n.dataset.id);n.classList.toggle("hit",q&&name(p).toLowerCase().includes(q))})};
 $("plus").onclick=()=>{zoom=Math.min(1.8,zoom+.1);transform()};$("minus").onclick=()=>{zoom=Math.max(.45,zoom-.1);transform()};$("reset").onclick=()=>{zoom=1;ox=-260;oy=0;transform()};
 let drag=false,sx,sy,a,b,v=$("vp");v.onpointerdown=e=>{if(e.target.closest(".node"))return;drag=true;sx=e.clientX;sy=e.clientY;a=ox;b=oy;v.setPointerCapture(e.pointerId)};v.onpointermove=e=>{if(drag){ox=a+e.clientX-sx;oy=b+e.clientY-sy;transform()}};v.onpointerup=()=>drag=false;
-function details(p){$("details").innerHTML=`<div class="details">${p.photo?`<img src="${esc(p.photo)}">`:""}<h2>${esc(name(p))}</h2><p><b>Dzimšana:</b> ${esc(p.birth||"—")}<br><b>Miršana:</b> ${esc(p.death||"—")}<br><b>Vieta:</b> ${esc(p.place||"—")}</p><p>${esc(p.bio||"")}</p></div>`;$("dlg").showModal()}$("xd").onclick=()=>$("dlg").close();render();
+function details(p){$("details").innerHTML=`<div class="details">${p.photo?`<img src="${esc(p.photo)}">`:""}<h2>${esc(name(p))}</h2><p><b>Dzimšana:</b> ${esc(p.birth||"—")}<br><b>Miršana:</b> ${esc(p.death||"—")}<br><b>Vieta:</b> ${esc(p.place||"—")}</p><p>${esc(p.bio||"")}</p></div>`;$("dlg").showModal()}
+$("xd").onclick=()=>$("dlg").close();render();
