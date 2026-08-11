@@ -35,9 +35,15 @@
 
   // Use saved edits only if they are based on the current family dataset.
   try {
-    const saved=JSON.parse(localStorage.getItem(STORAGE)||'null');
-    if(Array.isArray(saved) && saved.length>=people.length) people=saved;
-  } catch(e){}
+  const saved = JSON.parse(localStorage.getItem(STORAGE) || 'null');
+  if (Array.isArray(saved) && saved.length >= people.length) {
+    const savedById = new Map(saved.map(p => [String(p.id), p]));
+    people = people.map(p => {
+      const s = savedById.get(String(p.id));
+      return s ? { ...p, ...s, photo: p.photo || s.photo || '' } : p;
+    });
+  }
+} catch(e) {}
 
   function full(p){return [p.firstName,p.lastName].filter(Boolean).join(' ')}
   function save(){localStorage.setItem(STORAGE,JSON.stringify(people))}
